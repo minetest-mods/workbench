@@ -5,5 +5,5 @@
 
 ##### This mod is originating from [X-Decor](https://github.com/kilbith/xdecor). #####
 
-![Preview](http://i.imgur.com/cCR4FJc.png)
-![Preview2](http://i.imgur.com/Pqg3G92.png)
+![Preview](http://i.imgur.com/Pqg3G92.png)
+![Preview2](http://i.imgur.com/cCR4FJc.png)
