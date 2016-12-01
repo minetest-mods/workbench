@@ -1,5 +1,6 @@
 local workbench = {}
 screwdriver = screwdriver or {}
+local min, ceil = math.min, math.ceil
 
 -- Nodes allowed to be cut.
 -- Only the regular, solid blocks without metas or explosivity can be cut.
@@ -14,7 +15,8 @@ for node, def in pairs(minetest.registered_nodes) do
 	   not def.allow_metadata_inventory_take and
 	   not (def.groups.not_in_creative_inventory == 1) and
 	   not def.groups.wool and
-	   not def.description:find("Ore") and
+	   (def.tiles and not def.tiles[1]:find("default_mineral")) and
+	   not def.mesecons and
 	   def.description and
 	   def.description ~= "" and
 	   def.light_source == 0
@@ -22,6 +24,22 @@ for node, def in pairs(minetest.registered_nodes) do
 		nodes[#nodes+1] = node
 	end
 end
+
+-- Optionally, you can register custom cuttable nodes in the workbench
+workbench.custom_nodes_register = {
+	-- "default:leaves",
+}
+
+setmetatable(nodes, {
+	__concat = function(t1, t2)
+		for i=1, #t2 do
+			t1[#t1+1] = t2[i]
+		end
+		return t1
+	end
+})
+
+nodes = nodes..workbench.custom_nodes_register
 
 -- Nodeboxes definitions.
 workbench.defs = {
@@ -62,7 +80,7 @@ function workbench:get_output(inv, input, name)
 
 	local output = {}
 	for _, n in pairs(self.defs) do
-		local count = math.min(n[2] * input:get_count(), input:get_stack_max())
+		local count = min(n[2] * input:get_count(), input:get_stack_max())
 		local item = name.."_"..n[1]
 		if not n[3] then item = "stairs:"..n[1].."_"..name:match(":(.*)") end
 		output[#output+1] = item.." "..count
@@ -217,7 +235,7 @@ function workbench.on_take(pos, listname, index, stack)
 			inv:set_list("forms", {})
 		end
 	elseif listname == "forms" then
-		input:take_item(math.ceil(stack:get_count() / workbench.defs[index][2]))
+		input:take_item(ceil(stack:get_count() / workbench.defs[index][2]))
 		inv:set_stack("input", 1, input)
 		workbench:get_output(inv, input, input:get_name())
 	end
