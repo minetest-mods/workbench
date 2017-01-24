@@ -1,9 +1,10 @@
 local workbench = {}
+WB = {}
 screwdriver = screwdriver or {}
 local min, ceil = math.min, math.ceil
 
--- Nodes allowed to be cut.
--- Only the regular, solid blocks without metas or explosivity can be cut.
+-- Nodes allowed to be cut
+-- Only the regular, solid blocks without metas or explosivity can be cut
 local nodes = {}
 for node, def in pairs(minetest.registered_nodes) do
 	if (def.drawtype == "normal" or def.drawtype:sub(1,5) == "glass") and
@@ -27,8 +28,8 @@ for node, def in pairs(minetest.registered_nodes) do
 	end
 end
 
--- Optionally, you can register custom cuttable nodes in the workbench.
-workbench.custom_nodes_register = {
+-- Optionally, you can register custom cuttable nodes in the workbench
+WB.custom_nodes_register = {
 	-- "default:leaves",
 }
 
@@ -41,9 +42,9 @@ setmetatable(nodes, {
 	end
 })
 
-nodes = nodes..workbench.custom_nodes_register
+nodes = nodes..WB.custom_nodes_register
 
--- Nodeboxes definitions.
+-- Nodeboxes definitions
 workbench.defs = {
 	-- Name       Yield   X  Y   Z  W   H  L
 	{"nanoslab",	16, { 0, 0,  0, 8,  1, 8  }},
@@ -66,18 +67,18 @@ workbench.defs = {
 			    { 0, 8,  0, 8,  8, 8  }}
 }
 
--- Tools allowed to be repaired.
+-- Tools allowed to be repaired
 function workbench:repairable(stack)
 	local tools = {"pick", "axe", "shovel", "sword", "hoe", "armor", "shield"}
-	for _, t in pairs(tools) do
-		if stack:find(t) then return true end
+	for i=1, #tools do
+		return stack:find(tools[i])
 	end
-	return false
 end
 
 function workbench:get_output(inv, input, name)
 	if inv:is_empty("input") then
-		inv:set_list("forms", {}) return
+		inv:set_list("forms", {})
+		return
 	end
 
 	local output = {}
@@ -90,11 +91,11 @@ function workbench:get_output(inv, input, name)
 	inv:set_list("forms", output)
 end
 
--- Thanks to kaeza for this function.
+-- Thanks to kaeza for this function
 function workbench:pixelbox(size, boxes)
 	local fixed = {}
 	for _, box in pairs(boxes) do
-		-- `unpack` has been changed to `table.unpack` in newest Lua versions.
+		-- `unpack` has been changed to `table.unpack` in newest Lua versions
 		local x, y, z, w, h, l = unpack(box)
 		fixed[#fixed+1] = {
 			(x / size) - 0.5,
@@ -105,11 +106,11 @@ function workbench:pixelbox(size, boxes)
 			((z + l) / size) - 0.5
 		}
 	end
-	return {type = "fixed", fixed = fixed}
+	return {type="fixed", fixed=fixed}
 end
 
 local formspecs = {
-	-- Main formspec.
+	-- Main formspec
 	[[ label[0.9,1.23;Cut]
 	   label[0.9,2.23;Repair]
 	   box[-0.05,1;2.05,0.9;#555555]
@@ -124,14 +125,14 @@ local formspecs = {
 	   list[context;tool;2,2;1,1;]
 	   list[context;hammer;3,2;1,1;]
 	   list[context;forms;4,0;4,3;] ]],
-	-- Crafting formspec.
+	-- Crafting formspec
 	[[ image[5,1;1,1;gui_furnace_arrow_bg.png^[transformR270]
 	   button[0,0;1.5,1;back;< Back]
 	   list[current_player;craft;2,0;3,3;]
 	   list[current_player;craftpreview;6,1;1,1;]
 	   listring[current_player;main]
 	   listring[current_player;craft] ]],
-	-- Storage formspec.
+	-- Storage formspec
 	[[ list[context;storage;0,1;8,2;]
 	   button[0,0;1.5,1;back;< Back]
 	   listring[context;storage]
@@ -168,7 +169,7 @@ end
 function workbench.dig(pos)
 	local inv = minetest.get_meta(pos):get_inventory()
 	return inv:is_empty("input") and inv:is_empty("hammer") and
-		inv:is_empty("tool") and inv:is_empty("storage")
+	       inv:is_empty("tool") and inv:is_empty("storage")
 end
 
 function workbench.timer(pos)
@@ -178,10 +179,11 @@ function workbench.timer(pos)
 	local hammer = inv:get_stack("hammer", 1)
 
 	if tool:is_empty() or hammer:is_empty() or tool:get_wear() == 0 then
-		timer:stop() return
+		timer:stop()
+		return
 	end
 
-	-- Tool's wearing range: 0-65535 | 0 = new condition.
+	-- Tool's wearing range: 0-65535 | 0 = new condition
 	tool:add_wear(-500)
 	hammer:add_wear(700)
 
@@ -202,18 +204,8 @@ function workbench.put(_, listname, _, stack)
 	return 0
 end
 
-function workbench.take(_, listname, _, stack, player)
-	if listname == "forms" then
-		local inv = player:get_inventory()
-		if inv:room_for_item("main", stack:get_name()) then return -1 end
-		return 0
-	end
-	return stack:get_count()
-end
-
 function workbench.move(_, from_list, _, to_list, _, count)
-	if to_list == "storage" and from_list ~= "forms" then return count end
-	return 0
+	return (to_list == "storage" and from_list ~= "forms") and count or 0
 end
 
 function workbench.on_put(pos, listname, _, stack)
@@ -227,20 +219,34 @@ function workbench.on_put(pos, listname, _, stack)
 	end
 end
 
-function workbench.on_take(pos, listname, index, stack)
+function workbench.on_take(pos, listname, index, stack, player)
 	local inv = minetest.get_meta(pos):get_inventory()
 	local input = inv:get_stack("input", 1)
+	local fromlist = inv:get_stack(listname, index)
+	local inputname = input:get_name()
+	local stackname = stack:get_name()
+
+	if not fromlist:is_empty() and fromlist:get_name() ~= stackname then
+		local player_inv = player:get_inventory()
+		if player_inv:room_for_item("main", fromlist) then
+			player_inv:add_item("main", fromlist)
+		end
+
+		inv:set_list("input", {})
+		inv:set_list("forms", {})
+		return
+	end
 
 	if listname == "input" then
-		if stack:get_name() == input:get_name() then
-			workbench:get_output(inv, input, stack:get_name())
+		if stackname == inputname then
+			workbench:get_output(inv, input, stackname)
 		else
 			inv:set_list("forms", {})
 		end
 	elseif listname == "forms" then
 		input:take_item(ceil(stack:get_count() / workbench.defs[index][2]))
 		inv:set_stack("input", 1, input)
-		workbench:get_output(inv, input, input:get_name())
+		workbench:get_output(inv, input, inputname)
 	end
 end
 
@@ -261,7 +267,6 @@ minetest.register_node(":xdecor:workbench", {
 	on_metadata_inventory_put = workbench.on_put,
 	on_metadata_inventory_take = workbench.on_take,
 	allow_metadata_inventory_put = workbench.put,
-	allow_metadata_inventory_take = workbench.take,
 	allow_metadata_inventory_move = workbench.move
 })
 
